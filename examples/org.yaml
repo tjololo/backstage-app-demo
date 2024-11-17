@@ -17,8 +17,16 @@ spec:
   children: []
 ---
 apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: admins
+spec:
+  type: team
+  children: []
+---
+apiVersion: backstage.io/v1alpha1
 kind: User
 metadata:
   name: tjololo
 spec:
-  memberOf: [guests]
+  memberOf: [guests, admins]

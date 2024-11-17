@@ -1,0 +1,122 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+# https://backstage.io/docs/features/software-catalog/descriptor-format#kind-template
+kind: Template
+metadata:
+  name: terraform-pipeline-scaffold
+  title: Setup folder and pipeline for team terrafrom scripts
+  description: A tempalte that creates the folder and pipeline that later can be leveraged in subsequent terraform component
+spec:
+  owner: guests
+  type: service
+
+  # These parameters are used to generate the input form in the frontend, and are
+  # used to gather input data for the execution of the template.
+  parameters:
+    - title: Fill in some inforamtion
+      required:
+        - name
+        - subscription
+        - appId
+        - backendRg
+        - backendSa
+        - backendContainer
+      properties:
+        owner:
+          title: Owner
+          type: string
+          description: Owner of the component
+          ui:field: OwnerPicker
+          ui:options:
+            allowArbitraryValues: true
+        name:
+          title: Name
+          type: string
+          description: Unique name of the component
+          ui:autofocus: true
+          ui:options:
+            rows: 5
+        subscription:
+          title: Subscription
+          type: string
+          description: Subscription which resources will be deployed to
+          ui:options:
+            rows: 5
+        appId:
+          title: Application ID
+          type: string
+          description: Application ID of the Entra App used to deploy
+          ui:options:
+            rows: 5
+        backendRg:
+          title: Backend resource group name
+          type: string
+          description: Name of the resources group holding the storage account for the state file
+        backendSa:
+          title: Backend srorage account name
+          type: string
+          description: Name of the storage account where the state file is going to be saved
+        backendContainer:
+          title: Backend contianer name
+          type: string
+          description: Name of the blob container holding the statefile
+        backendKey:
+          title: Name fo the statefile
+          type: string
+          description: Name of the file where the state will be saved (backend key)
+          default: state.tfstate
+    - title: repoInfo
+      properties:
+        repoUrl:
+          title: Repository Location
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            allowedHosts:
+              - github.com
+            allowedOwners:
+              - tjololo-backstage-demo
+
+  # These steps are executed in the scaffolder backend, using data that we gathered
+  # via the parameters above.
+  steps:
+    # Each step executes an action, in this case one templates files into the working directory.
+    - id: fetch-base
+      name: Fetch Base
+      action: fetch:template
+      owner: ${{ parameters.owner }}
+      input:
+        url: ./content
+        owner: ${{ parameters.owner }}
+        values:
+          name: ${{ parameters.name }}
+          backendRg: ${{ paramters.backendRg }}
+          backendSa: ${{ paramters.backendSa }}
+          backendContainer: ${{ parameters.backendContainer }}
+          backendKey: ${{ parameters.backendKey }}
+          owner: ${{ parameters.owner }}
+
+    # This step publishes the contents of the working directory to GitHub.
+    - id: publish
+      name: Publish
+      action: publish:github
+      input:
+        allowedHosts: ['github.com']
+        description: This is ${{ parameters.name }}
+        repoUrl: ${{ parameters.repoUrl }}
+
+    # The final step is to register our new component in the catalog.
+    - id: register
+      name: Register
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps['publish'].output.repoContentsUrl }}
+        catalogInfoPath: '/catalog-info.yaml'
+
+  # Outputs are displayed to the user after a successful execution of the template.
+  output:
+    links:
+      - title: Repository
+        url: ${{ steps['publish'].output.remoteUrl }}
+      - title: Open in catalog
+        icon: catalog
+        entityRef: ${{ steps['register'].output.entityRef }}
